@@ -42,6 +42,6 @@ git clone https://github.com/gagip/Discord_VoteBot.git
 
 여러분들의 토큰은 디스코드 개발자 홈페이지에 접속한 뒤 SETTINGS - Bot 에 들어가 Copy 버튼을 클릭하시면 토큰이 복사됩니다. 
 
-![image-20200529051139420](C:\Users\y0264\AppData\Roaming\Typora\typora-user-images\image-20200529051139420.png)
+![image](https://user-images.githubusercontent.com/27941099/83189182-cb251880-a16b-11ea-86cd-61f6f8e23e85.png)
 
 그 다음 Discord_VoteBot 경로로 들어가 새로 token.txt 파일을 만들어주고, 텍스트 파일 안에 토큰을 붙여넣어주시면 됩니다.
