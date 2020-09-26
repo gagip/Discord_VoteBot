@@ -2,14 +2,51 @@ import discord, asyncio
 from discord.ext import commands
 import os
 import numpy as np
+import json
 
 bot = commands.Bot(command_prefix='!')
 
-# 토큰
+# 토큰 불러오기
 path = os.path.dirname(os.path.abspath(__file__))
 t = open(path + "/token.txt", 'r', encoding='utf-8')
 token = t.read().split()[0]
 
+# 이름을 찾아 고유 id 찾기
+# @members: 리스트
+def find_id(find_name, members):
+    for member in members:
+        if member.name == find_name:
+            return member.id
+        if member.nick == find_name:
+            return member.id
+    return -1
+
+# 
+def find_name(find_id, members):
+    for member in members:
+        if member.id == find_id:
+            return member.name
+    return -1
+
+# json 파일 생성
+def make_data(ctx):
+    # 데어터 생성
+    members = ctx.guild.members # 현 채널의 멤버들
+    """
+    members[0] example:
+    <Member id=363536605249798154 name='gagip' discriminator='7145' bot=False nick=None 
+    guild=<Guild id=715541406772625475 name='API test' shard_id=None chunked=True member_count=3>>
+    """
+    members_id = [member.id for member in members] # 현 채널의 멤버들 id
+    
+    # json 파일에 저장
+    init_data = {}
+    for id in members_id:
+        init_data[id] = 100000
+    
+    with open(f"./data/{ctx.guild}.json", "w") as json_file:
+        json.dump(init_data, json_file, indent=4, sort_keys=True)
+        print("완료")
 
 @bot.event
 async def on_ready():
@@ -30,7 +67,7 @@ async def leave(ctx):
     await ctx.voice_client.disconnect()
 
 
-@bot.command()
+@bot.command(aliases=['h', '도움말'])
 async def 도움(ctx):
     embed = discord.Embed(title=f"해당 봇은 투표 기능이 있는 봇입니다.", description=f'개발자: gagip')
     embed.add_field(name=f'!롤자랭', value=f'!롤자랭 / 채널 멤버들에게 랜덤 포지션을 부여합니다.\n'
@@ -40,7 +77,7 @@ async def 도움(ctx):
     await ctx.send(embed=embed)
 
 
-@bot.command()
+@bot.command(aliases=['자랭'])
 async def 롤자랭(ctx, *dis_member):
     # 현재 음성 채널에 있는 사람들 호출
     user = ctx.author  # 호출한 사람
@@ -65,7 +102,8 @@ async def 롤자랭(ctx, *dis_member):
     await ctx.send(embed=embed)
 
 
-# TODO 투표 기능 추가
+# TODO 중복투표 불가능하게
+# TODO 익명투표 만들기
 @bot.command()
 async def 투표(ctx, title=None, *choice):
     # 투표 도움말
@@ -101,9 +139,94 @@ async def 투표(ctx, title=None, *choice):
             for i in range(len(choice)):
                 await message.add_reaction(emoji_list[i])
 
-        
 
-# TODO 롤 전적
+
+# TODO 디코 후원 랭킹 시스템 도입
+"""
+점수 DB 만들기 및 불러오기
+랭킹 시스템 도입
+    - 기한 랭킹 (한달)
+    - !랭킹 
+    - 랭킹 보상: 
+후원 시스템
+    - !후원(도네) gagip 2000
+    => 채팅 로그 (A님이 B님에게 후원을 하였습니다)
+"""
+# TODO !후원 gagip (2만|2만원|2천원|2억)
+# TODO 채팅 2번 출력 디버깅
+@bot.command(aliases=['도네'])
+async def 후원(ctx, name, money):
+    members = ctx.guild.members # 현 채널의 멤버들
+    sponsor_id = ctx.author.id  # 후원자 id
+    beneficiary_id = find_id(name, members) # 수혜자 id
+    if beneficiary_id == -1: await ctx.send("해당 아이디가 존재하지 않습니다."); return
+    money = int(money)
+    
+    complte = False  # 후원 성공 여부
+
+    # json 파일 불러오기
+    try:
+        with open(f"./data/{ctx.guild}.json", "r"):
+            pass
+    except FileNotFoundError:
+        make_data(ctx)
+    finally:
+        with open(f"./data/{ctx.guild}.json", "r") as json_file:
+            data = json.load(json_file)
+            # 자기 자신 허용 X
+            if sponsor_id == beneficiary_id:
+                await ctx.send(f"자기 자신에게 후원할 수 없습니다")
+                return
+            # 후원자가 충분한 돈이 있는가?
+            if data[str(sponsor_id)] >= money:
+                data[str(sponsor_id)] -= money
+                data[str(beneficiary_id)] += money
+                await ctx.send(f"{ctx.guild.get_member(sponsor_id)}님이 {ctx.guild.get_member(beneficiary_id)}님에게 {money:,}원 후원하였습니다.")
+
+                complte = True
+            else:
+                await ctx.send("후원할 금액이 충분하지 않습니다.")
+                return
+        # 저장 
+        if complte:
+            with open(f"./data/{ctx.guild}.json", "w") as json_file:
+                json.dump(data, json_file, indent=4, sort_keys=True)
+
+
+@bot.command(aliases=['순위'])
+async def 랭킹(ctx, name=""):
+    members = ctx.guild.members # 현 채널의 멤버들
+    # json 파일 불러오기
+    try:
+        with open(f"./data/{ctx.guild}.json", "r"):
+            pass
+    except FileNotFoundError:
+        make_data(ctx)
+    finally:
+        with open(f"./data/{ctx.guild}.json", "r") as json_file:
+            data = json.load(json_file)
+            # money 내림차순 정렬
+            sorted_data = sorted(data.items(), key=(lambda x:x[1]), reverse=True)
+            s = ''
+            rank = 0
+            for d in sorted_data:
+                rank += 1
+                s += f'{rank}등 {find_name(int(d[0]), members)} : {d[1]:,}원\n'
+        embed = discord.Embed(title=f"랭킹", description=f'디버그용')
+        embed.add_field(name=f"한 달 간격으로 초기화 됩니다.", value=s)
+        await ctx.send(embed=embed)
+            
+
+
+
+
+ 
+# TODO tts 시스템 도입       
+"""
+!tts 오덕(할아버지|잼민이) "메시지"
+"""
+
+# TODO UNKOWN 데이터 처리
 @bot.command()
 async def 롤전적(ctx, id):
     import requests
@@ -114,7 +237,7 @@ async def 롤전적(ctx, id):
     resp = requests.get(url)
     soup = BeautifulSoup(resp.text, features='html.parser')
 
-    # 사용자 함수
+    # 태그 안에서 텍스트 추출
     def get_data(info):
         if info is not None:
             if re.search(r"\<.*\>", str(info)) is None:  # 태그가 있는지 확인
@@ -124,6 +247,21 @@ async def 롤전적(ctx, id):
         else:
             return 'None'
 
+    # 데이터 출력
+    def print_data(info_type):
+        result = ''
+        # 해당 데이터가 존재하지 않는다면
+        if len(info_type) == 1:
+            return '해당 정보가 존재하지 않습니다.'
+        else:
+            for row in info_type[1:]:  # 데이터
+                count = 0
+                for data in info_type[0]:  # 해더
+                    result += data + ': ' + row[count] + '\n'
+                    count += 1
+                if row is not info_type[-1]:
+                    result += '-' * 10 + '\n'
+            return result
 
     # 해당아이디가 존재하지 않는 경우
     if soup.find('div', class_='SummonerNotFoundLayout'):
@@ -135,12 +273,12 @@ async def 롤전적(ctx, id):
     name = id  # id 추가
     rank_info = soup.find('div', class_='TierRankInfo')
     tier = get_data(rank_info.find('div', class_='TierRank'))  # 솔로랭크 티어 추가
-    if tier != 'Unranked':
+    if tier != 'Unranked': 
         lp = get_data(rank_info.find('div', class_='TierInfo').find('span', 'LeaguePoints'))  # 리그 포인트 추가
         win = get_data(rank_info.find('span', class_='wins'))  # 승리 수 추가
         lose = get_data(rank_info.find('span', class_='losses'))  # 패배 수 추가
         winratio = get_data(rank_info.find('span', class_='winratio'))  # 승률 추가
-    else:
+    else: # 언랭일 시
         lp, win, lose, winratio = 'None', 'None', 'None', 'None'
     user_info.append([name, tier, lp, win, lose, winratio])
 
@@ -167,21 +305,7 @@ async def 롤전적(ctx, id):
 
     # TODO 데이터 전처리
 
-    # 데이터 출력
-    def print_data(info_type):
-        result = ''
-        # 해당 데이터가 존재하지 않는다면
-        if len(info_type) == 1:
-            return '해당 정보가 존재하지 않습니다.'
-        else:
-            for row in info_type[1:]:  # 데이터
-                count = 0
-                for data in info_type[0]:  # 해더
-                    result += data + ': ' + row[count] + '\n'
-                    count += 1
-                if row is not info_type[-1]:
-                    result += '-' * 10 + '\n'
-            return result
+    
 
     # TODO 디자인 고안
     embed = discord.Embed(title=f"{id}님 전적", description=f'디버그용')
