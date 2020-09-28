@@ -1,3 +1,5 @@
 # Ignore private token key
 token.txt
 memo.txt
+typecast.txt
+*.log

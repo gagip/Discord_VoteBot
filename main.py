@@ -21,7 +21,7 @@ def find_id(find_name, members):
             return member.id
     return -1
 
-# 
+# 고유 id -> 이름 찾기
 def find_name(find_id, members):
     for member in members:
         if member.id == find_id:
@@ -225,6 +225,45 @@ async def 랭킹(ctx, name=""):
 """
 !tts 오덕(할아버지|잼민이) "메시지"
 """
+@bot.command()
+async def tts(ctx, voice, mes):
+    # await ctx.author.voice.channel.connect() # 봇이 보이스 채널에 들어감
+    from selenium import webdriver
+    from bs4 import BeautifulSoup
+    import time
+    # 크롬창 열기
+    browser = webdriver.Chrome(executable_path='C:\selenium\chromedriver.exe')
+    browser.get("https://typecast.ai/create-v2")
+    time.sleep(0.5)
+    # 로그인
+    with open(path + "/typecast.txt", 'r', encoding='utf-8') as typecast:
+        cont = typecast.readlines()
+        id = cont[0].strip()
+        pw = cont[1].strip()
+    browser.find_element_by_id("email").send_keys(id)
+    browser.find_element_by_id("password").send_keys(pw)
+    browser.find_elements_by_tag_name("button")[0].click()
+    print(f"로그인완료: {mes}")
+    time.sleep(10)
+    
+    # 스크립트 작성
+    soup = BeautifulSoup(browser.page_source)
+    browser.find_element_by_class_name('ProseMirror').send_keys(mes)            # 본문에 글 적기
+    share_btn = browser.find_elements_by_class_name('menu-list-item')[3]        # 3번째 버튼 (공유하기)
+    browser.execute_script('arguments[0].click();', share_btn)
+    print(f"클릭 성공: {mes}")
+    time.sleep(10)
+    
+    # url 호출
+    soup = BeautifulSoup(browser.page_source)
+    url = soup.find('div', class_='code-background').get_text()
+    
+    # TODO 보이스 채널에 url 재생 
+    
+    browser.close()
+    print(f"추출 완료: {mes}")
+    await ctx.send(url)
+    pass
 
 # TODO UNKOWN 데이터 처리
 @bot.command()
