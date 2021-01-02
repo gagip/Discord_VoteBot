@@ -47,3 +47,7 @@ git clone https://github.com/gagip/Discord_VoteBot.git
 ![image](https://user-images.githubusercontent.com/27941099/83189182-cb251880-a16b-11ea-86cd-61f6f8e23e85.png)
 
 그 다음 Discord_VoteBot 경로로 들어가 새로 token.txt 파일을 만들어주고, 텍스트 파일 안에 토큰을 붙여넣어주시면 됩니다.
+
+![image](https://user-images.githubusercontent.com/27941099/103454230-3e57c400-4d25-11eb-83ae-88e4390c7165.png)
+
+ Gateway Intents라는 항목이 생겼습니다. 두 가지 항목을 다 체크해주세요. 체크하지 않으면 나중에 요청 결과가 원활히 이뤄지지 않습니다. 
