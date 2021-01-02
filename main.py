@@ -4,16 +4,23 @@ import os
 import numpy as np
 import json
 
+from selenium import webdriver
+from bs4 import BeautifulSoup
+import time
+import datetime
+# 사용자 정의 모듈
+from PointManager import PointManager
 bot = commands.Bot(command_prefix='!')
 
-# 토큰 불러오기
-path = os.path.dirname(os.path.abspath(__file__))
-t = open(path + "/token.txt", 'r', encoding='utf-8')
-token = t.read().split()[0]
 
-# 이름을 찾아 고유 id 찾기
-# @members: 리스트
+
+
 def find_id(find_name, members):
+    '''
+    이름 ->고유 id 반환
+    :param find_name: 조회할 유저 이름
+    :param memebers: 채널 멤버 리스트
+    '''
     for member in members:
         if member.name == find_name:
             return member.id
@@ -21,32 +28,17 @@ def find_id(find_name, members):
             return member.id
     return -1
 
-# 고유 id -> 이름 찾기
 def find_name(find_id, members):
+    '''
+    고유 id -> 이름 반환
+    :param find_id: 조회할 유저 id
+    :param members: 채널 멤버 리스트
+    '''
     for member in members:
         if member.id == find_id:
             return member.name
     return -1
 
-# json 파일 생성
-def make_data(ctx):
-    # 데어터 생성
-    members = ctx.guild.members # 현 채널의 멤버들
-    """
-    members[0] example:
-    <Member id=363536605249798154 name='gagip' discriminator='7145' bot=False nick=None 
-    guild=<Guild id=715541406772625475 name='API test' shard_id=None chunked=True member_count=3>>
-    """
-    members_id = [member.id for member in members] # 현 채널의 멤버들 id
-    
-    # json 파일에 저장
-    init_data = {}
-    for id in members_id:
-        init_data[id] = 100000
-    
-    with open(f"./data/{ctx.guild}.json", "w") as json_file:
-        json.dump(init_data, json_file, indent=4, sort_keys=True)
-        print("완료")
 
 @bot.event
 async def on_ready():
@@ -55,12 +47,10 @@ async def on_ready():
     print(bot.user.id)  # 봇의 고유 ID넘버 출력
     print('------')
 
-
 @bot.command()
 async def join(ctx):
     channel = ctx.author.voice.channel
     await channel.connect()  # PyNaCl 라이브러리 필요
-
 
 @bot.command()
 async def leave(ctx):
@@ -102,16 +92,23 @@ async def 롤자랭(ctx, *dis_member):
     await ctx.send(embed=embed)
 
 
-# TODO 중복투표 불가능하게
-# TODO 익명투표 만들기
 @bot.command()
-async def 투표(ctx, title=None, *choice):
+async def 투표(ctx, title, *choice):
+    '''
+    투표
+    :param title: 투표 제목
+    :param choice: 선택지 (최대 9개)
+    '''
+    # TODO 웹
+    # TODO 중복투표 불가능하게
+    # TODO 익명투표 만들기
     # 투표 도움말
     if title is None and choice == ():
         embed = discord.Embed(title=f'투표 도움말', description=f'개발자: gagip')
         embed.add_field(name=f'좋아요/싫어요', value=f'!투표 제목')
         embed.add_field(name=f'복수응답(1-9)', value=f'!투표 제목 내용1 내용2 ...')
         await ctx.send(embed=embed)
+    
     # 투표 진행
     else:
         embed = discord.Embed(title=title)
@@ -122,7 +119,7 @@ async def 투표(ctx, title=None, *choice):
             await message.add_reaction('👎')
         else:
             # 복수응답(1-10)
-            emoji_list = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣']
+            emoji_list = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣']  # 선택지 번호 라벨
 
             s = ''
             emoji = iter(emoji_list)
@@ -133,109 +130,93 @@ async def 투표(ctx, title=None, *choice):
                     await ctx.sent('투표 선택지는 9개까지만 가능합니다.')
                     return
 
+            # 디스코드에 제목 출력
             embed.add_field(name=s, value='1은 기본적으로 있음, 중복투표 가능')
             message = await ctx.send(embed=embed)
 
+            # 디스코드에 선택지 출력
             for i in range(len(choice)):
                 await message.add_reaction(emoji_list[i])
 
 
-
-# TODO 디코 후원 랭킹 시스템 도입
-"""
-점수 DB 만들기 및 불러오기
-랭킹 시스템 도입
-    - 기한 랭킹 (한달)
-    - !랭킹 
-    - 랭킹 보상: 
-후원 시스템
-    - !후원(도네) gagip 2000
-    => 채팅 로그 (A님이 B님에게 후원을 하였습니다)
-"""
-# TODO !후원 gagip (2만|2만원|2천원|2억)
-# TODO 채팅 2번 출력 디버깅
-@bot.command(aliases=['도네'])
+@bot.command(aliases=['도네', 'give'])
 async def 후원(ctx, name, money):
-    members = ctx.guild.members # 현 채널의 멤버들
-    sponsor_id = ctx.author.id  # 후원자 id
+    '''
+    다른 유저에게 포인트를 후원합니다
+    :param name: 후원해줄 이름
+    :param money: 후원 포인트
+    '''
+    members = ctx.guild.members             # 현 채널의 멤버들
+    sponsor_id = ctx.author.id              # 후원자 id
     beneficiary_id = find_id(name, members) # 수혜자 id
-    if beneficiary_id == -1: await ctx.send("해당 아이디가 존재하지 않습니다."); return
-    money = int(money)
     
-    complte = False  # 후원 성공 여부
+    if beneficiary_id == -1: await ctx.send("해당 아이디가 존재하지 않습니다."); return
+    
+    money = int(money)
+    complte = False     # 후원 성공 여부
 
-    # json 파일 불러오기
-    try:
-        with open(f"./data/{ctx.guild}.json", "r"):
-            pass
-    except FileNotFoundError:
-        make_data(ctx)
-    finally:
-        with open(f"./data/{ctx.guild}.json", "r") as json_file:
-            data = json.load(json_file)
-            # 자기 자신 허용 X
-            if sponsor_id == beneficiary_id:
-                await ctx.send(f"자기 자신에게 후원할 수 없습니다")
-                return
-            # 후원자가 충분한 돈이 있는가?
-            if data[str(sponsor_id)] >= money:
-                data[str(sponsor_id)] -= money
-                data[str(beneficiary_id)] += money
-                await ctx.send(f"{ctx.guild.get_member(sponsor_id)}님이 {ctx.guild.get_member(beneficiary_id)}님에게 {money:,}원 후원하였습니다.")
+    
+    pointManager.set_ctx(ctx)
+    data = pointManager.load_data()
 
-                complte = True
-            else:
-                await ctx.send("후원할 금액이 충분하지 않습니다.")
-                return
-        # 저장 
-        if complte:
-            with open(f"./data/{ctx.guild}.json", "w") as json_file:
-                json.dump(data, json_file, indent=4, sort_keys=True)
+    # 자기 자신 허용 X
+    if sponsor_id == beneficiary_id:
+        await ctx.send(f"자기 자신에게 후원할 수 없습니다")
+        return
 
+    # 후원자가 충분한 돈이 있는가?
+    if data[str(sponsor_id)] >= money:
+        data[str(sponsor_id)] -= money
+        data[str(beneficiary_id)] += money
+        await ctx.send(f"{ctx.guild.get_member(sponsor_id)}님이 {ctx.guild.get_member(beneficiary_id)}님에게 {money:,}포인트 후원하였습니다.")
+
+        complte = True
+    else:
+        await ctx.send("후원할 금액이 충분하지 않습니다.")
+        return
+
+    # 저장 
+    if complte: pointManager.save_data(data)
 
 @bot.command(aliases=['순위'])
-async def 랭킹(ctx, name=""):
-    members = ctx.guild.members # 현 채널의 멤버들
-    # json 파일 불러오기
-    try:
-        with open(f"./data/{ctx.guild}.json", "r"):
-            pass
-    except FileNotFoundError:
-        make_data(ctx)
-    finally:
-        with open(f"./data/{ctx.guild}.json", "r") as json_file:
-            data = json.load(json_file)
-            # money 내림차순 정렬
-            sorted_data = sorted(data.items(), key=(lambda x:x[1]), reverse=True)
-            s = ''
-            rank = 0
-            for d in sorted_data:
-                rank += 1
-                s += f'{rank}등 {find_name(int(d[0]), members)} : {d[1]:,}원\n'
-        embed = discord.Embed(title=f"랭킹", description=f'디버그용')
-        embed.add_field(name=f"한 달 간격으로 초기화 됩니다.", value=s)
-        await ctx.send(embed=embed)
-            
+async def 랭킹(ctx, top=10):
+    '''
+    현 채널의 멤버 포인트 랭킹 조회
+    :param top: 상위 몇까지 보여줄지
+    ''' 
+    print(ctx.guild.members)
+    pointManager.set_ctx(ctx)
+    data = pointManager.load_data()
+    
+    # money 내림차순 정렬
+    sorted_data = sorted(data.items(), key=(lambda x:x[1]), reverse=True)
+    
+    # 결과 텍스트 작성
+    s = ''; rank = 0;
+    for d in sorted_data:
+        rank += 1
+        s += f'{rank}등 {pointManager.find_name(d[0])} : {d[1]:,} 포인트\n'
 
-
-
-
- 
-# TODO tts 시스템 도입       
-"""
-!tts 오덕(할아버지|잼민이) "메시지"
-"""
+    # 결과 텍스트를 디스코드에 전달
+    embed = discord.Embed(title=f"랭킹", description=f'디버그용')
+    embed.add_field(name=f"한 달 간격으로 초기화 됩니다.", value=s)
+    await ctx.send(embed=embed)
+                
 @bot.command()
 async def tts(ctx, voice, mes):
+    """
+    !tts 오덕(할아버지|잼민이) "메시지"
+    :param voice: 목소리 타입
+    :param mes: 메세지
+    """
     # await ctx.author.voice.channel.connect() # 봇이 보이스 채널에 들어감
-    from selenium import webdriver
-    from bs4 import BeautifulSoup
-    import time
+
     # 크롬창 열기
-    browser = webdriver.Chrome(executable_path='C:\selenium\chromedriver.exe')
+    browser = webdriver.Chrome(executable_path=r'C:\selenium\chromedriver.exe')
     browser.get("https://typecast.ai/create-v2")
     time.sleep(0.5)
-    # 로그인
+
+    # typecast 로그인
     with open(path + "/typecast.txt", 'r', encoding='utf-8') as typecast:
         cont = typecast.readlines()
         id = cont[0].strip()
@@ -247,19 +228,24 @@ async def tts(ctx, voice, mes):
     time.sleep(10)
     
     # 스크립트 작성
-    soup = BeautifulSoup(browser.page_source)
+    soup = BeautifulSoup(browser.page_source, "html.parser")
     browser.find_element_by_class_name('ProseMirror').send_keys(mes)            # 본문에 글 적기
     share_btn = browser.find_elements_by_class_name('menu-list-item')[3]        # 3번째 버튼 (공유하기)
     browser.execute_script('arguments[0].click();', share_btn)
-    print(f"클릭 성공: {mes}")
+    print(f"공유 성공: {mes}")
     time.sleep(10)
     
     # url 호출
-    soup = BeautifulSoup(browser.page_source)
-    url = soup.find('div', class_='code-background').get_text()
+    soup = BeautifulSoup(browser.page_source, "html.parser")
+    url = soup.find('div', class_='code-background').get_text().strip()
     
     # TODO 보이스 채널에 url 재생 
+    soup = BeautifulSoup(browser.page_source, "html.parser")
     
+    
+    
+   
+
     browser.close()
     print(f"추출 완료: {mes}")
     await ctx.send(url)
@@ -268,6 +254,10 @@ async def tts(ctx, voice, mes):
 # TODO UNKOWN 데이터 처리
 @bot.command()
 async def 롤전적(ctx, id):
+    """
+    op.gg에서 가져온 해당 유저의 롤 전적 조회
+    :param id: 조회할 유저 id
+    """
     import requests
     from bs4 import BeautifulSoup
     import re
@@ -353,5 +343,12 @@ async def 롤전적(ctx, id):
     embed.add_field(name=f"최근 전적", value=print_data(last_7))
     await ctx.send(embed=embed)
 
-
-bot.run(token)
+if __name__ == "__main__":
+    # bot 토큰 불러오기
+    token = ""
+    path = os.path.dirname(os.path.abspath(__file__))
+    with open(path + "/token.txt", 'r', encoding='utf-8') as t:
+        token = t.read().split()[0]
+    
+    pointManager = PointManager()
+    bot.run(token)

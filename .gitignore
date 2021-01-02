@@ -3,3 +3,7 @@ token.txt
 memo.txt
 typecast.txt
 *.log
+data/
+__pycache__
+.vscode
+
