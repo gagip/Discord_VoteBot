@@ -10,9 +10,9 @@ import time
 import datetime
 # 사용자 정의 모듈
 from PointManager import PointManager
-bot = commands.Bot(command_prefix='!')
-
-
+#intents = discord.Intents(messages=True, guilds=True, members=True) # 괄호 안에 활성화할 인텐트를 작성해야함
+intents = discord.Intents.all()                         # bot에게 모든 작업 권한 주기
+bot = commands.Bot(command_prefix='!', intents=intents)
 
 
 def find_id(find_name, members):
@@ -39,13 +39,14 @@ def find_name(find_id, members):
             return member.name
     return -1
 
-
 @bot.event
 async def on_ready():
     print('Logged in as')
     print(bot.user.name)  # 봇의 이름 출력
     print(bot.user.id)  # 봇의 고유 ID넘버 출력
     print('------')
+
+    
 
 @bot.command()
 async def join(ctx):
@@ -56,7 +57,6 @@ async def join(ctx):
 async def leave(ctx):
     await ctx.voice_client.disconnect()
 
-
 @bot.command(aliases=['h', '도움말'])
 async def 도움(ctx):
     embed = discord.Embed(title=f"해당 봇은 투표 기능이 있는 봇입니다.", description=f'개발자: gagip')
@@ -65,7 +65,6 @@ async def 도움(ctx):
     embed.add_field(name=f'!롤전적', value=f'롤전적 아이디 / 해당 아이디의 최근 롤 전적을 간단하게 보여줍니다.')
     embed.add_field(name=f'!투표', value=f'!투표 / 투표장이 투표 세팅을 한 후 투표를 진행합니다.')
     await ctx.send(embed=embed)
-
 
 @bot.command(aliases=['자랭'])
 async def 롤자랭(ctx, *dis_member):
@@ -90,7 +89,6 @@ async def 롤자랭(ctx, *dis_member):
     for i in range(len(random_position)):
         embed.add_field(name=members[i], value=f"{random_position[i]}\n")
     await ctx.send(embed=embed)
-
 
 @bot.command()
 async def 투표(ctx, title, *choice):
@@ -138,7 +136,6 @@ async def 투표(ctx, title, *choice):
             for i in range(len(choice)):
                 await message.add_reaction(emoji_list[i])
 
-
 @bot.command(aliases=['도네', 'give'])
 async def 후원(ctx, name, money):
     '''
@@ -146,17 +143,17 @@ async def 후원(ctx, name, money):
     :param name: 후원해줄 이름
     :param money: 후원 포인트
     '''
-    members = ctx.guild.members             # 현 채널의 멤버들
-    sponsor_id = ctx.author.id              # 후원자 id
-    beneficiary_id = find_id(name, members) # 수혜자 id
+    pointManager.set_ctx(ctx)
+
+    members = ctx.guild.members                 # 현 채널의 멤버들
+    sponsor_id = ctx.author.id                  # 후원자 id
+    beneficiary_id = pointManager.find_id(name) # 수혜자 id
     
     if beneficiary_id == -1: await ctx.send("해당 아이디가 존재하지 않습니다."); return
     
     money = int(money)
     complte = False     # 후원 성공 여부
 
-    
-    pointManager.set_ctx(ctx)
     data = pointManager.load_data()
 
     # 자기 자신 허용 X
@@ -184,7 +181,6 @@ async def 랭킹(ctx, top=10):
     현 채널의 멤버 포인트 랭킹 조회
     :param top: 상위 몇까지 보여줄지
     ''' 
-    print(ctx.guild.members)
     pointManager.set_ctx(ctx)
     data = pointManager.load_data()
     
@@ -193,7 +189,8 @@ async def 랭킹(ctx, top=10):
     
     # 결과 텍스트 작성
     s = ''; rank = 0;
-    for d in sorted_data:
+    
+    for d in sorted_data[:min(len(sorted_data), top)]:
         rank += 1
         s += f'{rank}등 {pointManager.find_name(d[0])} : {d[1]:,} 포인트\n'
 
@@ -342,6 +339,44 @@ async def 롤전적(ctx, id):
     embed.add_field(name=f"모스트 챔프", value=print_data(most_champ_lst))
     embed.add_field(name=f"최근 전적", value=print_data(last_7))
     await ctx.send(embed=embed)
+
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+    # 보이스톡에 들어왔을 때
+    if before.channel is None and after.channel is not None:
+        try:
+            with open(f"./data/log/{member.id}.json", "r") as f:
+                data = json.load(f)
+                data[str(len(data))] = [datetime.datetime.now().strftime("%Y/%m/%d %H:%M"), after.channel.id, "in"]
+
+            with open(f"./data/log/{member.id}.json", "w") as f:
+                json.dump(data, f, indent=4, sort_keys=True)
+                
+        except FileNotFoundError:
+            with open(f"./data/log/{member.id}.json", "w") as f:
+                data = {}
+                data[0] = [datetime.datetime.now().strftime("%Y/%m/%d %H:%M"), after.channel.id, "in"]
+                json.dump(data, f, indent=4, sort_keys=True)
+                pass
+
+    # 보이스톡에 나갈 때
+    elif before.channel is not None and after.channel is None:
+        try:
+            with open(f"./data/log/{member.id}.json", "r") as f:
+                data = json.load(f)
+                data[str(len(data))] = [datetime.datetime.now().strftime("%Y/%m/%d %H:%M"), before.channel.id, "out"]
+
+            # 30분 참가할 때마다 포인트 제공
+            mes = pointManager.give_point_for_joining_chennel(member, data)
+            
+            with open(f"./data/log/{member.id}.json", "w") as f:
+                json.dump(data, f, indent=4, sort_keys=True)
+            if (mes != -1):
+                await before.channel.guild.text_channels[0].send(mes)
+        except FileNotFoundError:
+            pass
+    
 
 if __name__ == "__main__":
     # bot 토큰 불러오기

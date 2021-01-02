@@ -15,6 +15,7 @@ class PointManager():
     def __init__(self):
         self.ctx = None
         self.members = None
+        self.join_point = 50
 
     def set_ctx(self, ctx):
         self.ctx = ctx
@@ -56,20 +57,22 @@ class PointManager():
         if not (today.year == year and today.month == month):
             init_data(self.ctx)      # DB 초기화
     
-    def load_data(self):
+    def load_data(self, guild=None):
         '''json 파일 불러오기'''
+        if guild is None: guild = self.ctx.guild
         try:
-            with open(f"./data/{self.ctx.guild}.json", "r") as json_file:
+            with open(f"./data/{guild}.json", "r") as json_file:
                 return json.load(json_file)
         except FileNotFoundError:
             self.init_data()
 
-    def save_data(self, data):
+    def save_data(self, data, guild=None):
         '''
         json 파일 쓰기
         :param data: 작성할 데이터
         '''
-        with open(f"./data/{self.ctx.guild}.json", "w") as json_file:
+        if guild is None: guild = self.ctx.guild
+        with open(f"./data/{guild}.json", "w") as json_file:
             json.dump(data, json_file, indent=4, sort_keys=True)
 
     def find_id(self, user_name):
@@ -96,3 +99,31 @@ class PointManager():
             if member.id == user_id:
                 return member.name
         return -1
+    
+    def give_point_for_joining_chennel(self, member, data):
+        # 현재 보이스톡 
+        member_id = member.id
+
+        before = data[str(len(data)-2)]
+        after = data[str(len(data)-1)]
+
+        if (before[2] == "in" and after[2] == "out") and\
+                (before[1] == after[1]):
+            before_time = datetime.datetime.strptime(before[0], "%Y/%m/%d %H:%M")
+            after_time = datetime.datetime.strptime(after[0], "%Y/%m/%d %H:%M")
+
+            diff_time = (after_time - before_time).seconds // 60
+            
+            # 30분마다 점수 주기
+            score = (diff_time//30) * self.join_point
+            
+            # json data에 반영
+            if (score > 0):
+                guild_data = self.load_data(member.guild.name)
+                guild_data[str(member_id)] += score
+                self.save_data(guild_data, member.guild.name)
+                return (f"{member.name}님 {diff_time}분간 참여로 {score} 포인트 획득!!")
+
+        return -1
+
+    
