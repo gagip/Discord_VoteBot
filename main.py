@@ -57,13 +57,25 @@ async def join(ctx):
 async def leave(ctx):
     await ctx.voice_client.disconnect()
 
-@bot.command(aliases=['h', '도움말'])
+@bot.command(aliases=['h', '도움말', '명령어'])
 async def 도움(ctx):
     embed = discord.Embed(title=f"해당 봇은 투표 기능이 있는 봇입니다.", description=f'개발자: gagip')
-    embed.add_field(name=f'!롤자랭', value=f'!롤자랭 / 채널 멤버들에게 랜덤 포지션을 부여합니다.\n'
-                                        '!롤자랭 2 4 / 2번째, 4번째 멤버를 제외하고 실행합니다.')
-    embed.add_field(name=f'!롤전적', value=f'롤전적 아이디 / 해당 아이디의 최근 롤 전적을 간단하게 보여줍니다.')
-    embed.add_field(name=f'!투표', value=f'!투표 / 투표장이 투표 세팅을 한 후 투표를 진행합니다.')
+    embed.add_field(name=f'!롤자랭', value=f'!롤자랭 \n 채널 멤버들에게 랜덤 포지션을 부여합니다.\n'
+                                        '!롤자랭 [2] [4] \n 2번째, 4번째 멤버를 제외하고 실행합니다.')
+    embed.add_field(name=f'!롤전적', value=f'롤전적 [아이디]\n 해당 아이디의 최근 롤 전적을 간단하게 보여줍니다.')
+    embed.add_field(name=f'!투표', value=f'!투표 [선택지1] [선택지2]...\n 투표장이 투표 세팅을 한 후 투표를 진행합니다. 선택지가 없을 시 찬반투표로 진행')
+    embed.add_field(name=f'!tts', value=f'!tts [오덕] [메시지]\n tts 목소리로 해당 메시지를 읽어줍니다. (개발중)')
+    embed.add_field(name=f'!후원', value=f'!후원 [후원할 유저 id] [후원할 포인트]\n 유저에게 후원')
+    embed.add_field(name=f'!랭킹', value=f'!랭킹 [숫자]\n 1위부터 [숫자]까지 포인트 랭킹 목록을 보여줍니다')
+    embed.add_field(name=f'!포인트', value=f'!포인트 [해당 유저]\n [해당 유저]의 잔여 포인트를 보여줍니다')
+
+    
+    await ctx.send(embed=embed)
+
+    embed = discord.Embed(title=f"주의", description=f'개발자: gagip')
+    embed.add_field(name=f"명령어는 띄어쓰기에 민감합니다. 띄어쓰기가 있는 문자열을 입력하고 싶을 땐 쌍따옴표(\")를 사용하세요", 
+                        value=f'예시\n!포인트 살인마 싸대기 딱대  (x)\n!포인트 "살인마 싸대기 딱대" (O)')
+
     await ctx.send(embed=embed)
 
 @bot.command(aliases=['자랭'])
@@ -136,7 +148,7 @@ async def 투표(ctx, title, *choice):
             for i in range(len(choice)):
                 await message.add_reaction(emoji_list[i])
 
-@bot.command(aliases=['도네', 'give'])
+@bot.command(aliases=['도네', 'give', '기부'])
 async def 후원(ctx, name, money):
     '''
     다른 유저에게 포인트를 후원합니다
@@ -339,6 +351,18 @@ async def 롤전적(ctx, id):
     embed.add_field(name=f"모스트 챔프", value=print_data(most_champ_lst))
     embed.add_field(name=f"최근 전적", value=print_data(last_7))
     await ctx.send(embed=embed)
+
+@bot.command(aliases=['point', '점수'])
+async def 포인트(ctx, name=None):
+    pointManager.set_ctx(ctx)
+    data = pointManager.load_data()
+
+    if name is None: id=ctx.author.id 
+    else: id=pointManager.find_id(name)
+
+    if id==-1: await ctx.send("해당 아이디가 존재하지 않습니다."); return
+
+    await ctx.send(f"{pointManager.find_name(id)}님의 현재 포인트는 {data[str(id)]}입니다.")
 
 
 @bot.event
