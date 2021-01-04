@@ -385,12 +385,13 @@ async def 토토(ctx):
     try:
         pointManager.set_ctx(ctx)
         toto_data = pointManager.load_data("toto")
+        author = pointManager.find_name(toto_data["author"])
         c1, c2 = pointManager.view_toto()
 
-        embed = discord.Embed(title=f"{toto_data['title']}", description=f'개발자: gagip')
-        embed.add_field(name=f"{toto_data['choice1']}", 
+        embed = discord.Embed(title=f"{toto_data['title']}", description=f'주최자:{author} 개발자: gagip')
+        embed.add_field(name=f"[1] {toto_data['choice1']}", 
                 value=f"총 포인트: {c1[0]}\n비율:{c1[1]}%\n배당:1:{c1[2]}\n최고배팅자:{c1[3]}\n최고배팅액:{c1[4]}")
-        embed.add_field(name=f"{toto_data['choice2']}", 
+        embed.add_field(name=f"[2] {toto_data['choice2']}", 
                 value=f"총 포인트: {c2[0]}\n비율:{c2[1]}%\n배당:1:{c2[2]}\n최고배팅자:{c2[3]}\n최고배팅액:{c2[4]}")
         await ctx.send(embed=embed)
     except:

@@ -184,7 +184,7 @@ class PointManager():
         if (point_amount < point):
             return f"잔액이 부족합니다. 현재 소지하신 포인트는 {point_amount}입니다."
         else:
-            if not (choice == 1 or choice == 2): return
+            if not (choice == 1 or choice == 2): return f"선택지는 1 또는 2만 가능합니다"
             # 배팅 기록 저장
             toto_data = self.load_data("toto")
             if (toto_data["isbetting"] == 0): return f"주최자가 배팅을 제한하였습니다" 
@@ -265,7 +265,8 @@ class PointManager():
                 toto_data["isbetting"] = 0
                 with open("./data/toto.json", "w") as f:
                     json.dump(toto_data, f, indent=4, sort_keys=True, ensure_ascii=False)
-
+                return f"배팅을 제한합니다. 이후 배팅을 하실 수 없습니다. 아예 배팅시스템을 종료하려면 !토토종료 [최종선택지] 명령어로 호출해주세요."
+            return f"주최자만 배팅을 제한할 수 있습니다"
         except:
             pass
 
