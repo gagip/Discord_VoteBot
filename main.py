@@ -378,6 +378,7 @@ async def 토토시작(ctx, title, *choice):
 
     pointManager.create_toto(ctx.author.id, title, choice)
     await ctx.send(f"토토 배팅 생성! {title}\n\n'!토토'를 입력하여 배팅현황을 파악하고\n'!배팅 [선택지] [포인트]'를 입력하여 배팅을 해보세요")
+    await 토토(ctx)
 
 @bot.command()
 async def 토토(ctx):
