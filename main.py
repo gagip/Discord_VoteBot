@@ -71,6 +71,7 @@ async def 도움(ctx):
     embed.add_field(name=f'!토토시작', value=f'!토토시작 [제목] [선택지1] [선택지2]\n 토토 배팅을 시작합니다.')
     embed.add_field(name=f'!토토', value=f'!토토\n 토토 배팅 현황을 파악합니다.')
     embed.add_field(name=f'!배팅', value=f'!배팅 [선택지(1 or 2)] [포인트]\n 해당 선택지에 배팅을 합니다.')
+    embed.add_field(name=f'!배팅종료', value=f'!배팅종료 [선택지(1 or 2)]\n 토토 배팅을 종료합니다.')
     embed.add_field(name=f'!토토종료', value=f'!토토종료 [선택지(1 or 2)]\n 토토 배팅을 종료하고 포인트를 정산합니다.')
     
     await ctx.send(embed=embed)
@@ -400,6 +401,13 @@ async def 배팅(ctx, choice, point):
     s = pointManager.betting(ctx.author.id, choice, point)
     await ctx.send(s)
     await 토토(ctx)
+
+@bot.command(aliases=[])
+async def 배팅종료(ctx, choice, point):
+    pointManager.set_ctx(ctx)
+    pointManager.end_betting(ctx.author.id)
+    await ctx.send("배팅을 제한합니다. 이후 배팅을 하실 수 없습니다")
+
 
 @bot.command(aliases=[])
 async def 토토종료(ctx, choice):

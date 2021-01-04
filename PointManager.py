@@ -158,6 +158,7 @@ class PointManager():
                 data["title"] = title
                 data["choice1"] = choice[0]
                 data["choice2"] = choice[1]
+                data["isbetting"] = 1
                 data["log"] = []
                 json.dump(data, f, indent=4, sort_keys=True, ensure_ascii=False)
         except:
@@ -169,6 +170,7 @@ class PointManager():
                 data["title"] = title
                 data["choice1"] = choice[0]
                 data["choice2"] = choice[1]
+                data["isbetting"] = 1
                 data["log"] = []
                 json.dump(data, f, indent=4, sort_keys=True, ensure_ascii=False)
     
@@ -185,6 +187,8 @@ class PointManager():
             if not (choice == 1 or choice == 2): return
             # 배팅 기록 저장
             toto_data = self.load_data("toto")
+            if (toto_data["isbetting"] == 0): return f"주최자가 배팅을 제한하였습니다" 
+
             for t_member, t_choice, t_point in toto_data["log"]:
                 if (t_member == member_id and t_choice != choice): return f"다른 곳에 배팅할 수 없습니다."
 
@@ -228,9 +232,9 @@ class PointManager():
             return mes
         else:
             # 다른 사람이지만 20분이 지나면 초기화 시킬 수 있습니다
-            mes = f"이미 토토를 {toto_data['author']}님이 만드셨습니다. 20분이 지나면 다른 분이 초기화 시킬 수 있습니다."
+            mes = f"이미 토토를 {toto_data['author']}님이 만드셨습니다. 60분이 지나면 다른 분이 초기화 시킬 수 있습니다."
             date = datetime.datetime.strptime(toto_data["date"], self.date_format)
-            if (date - datetime.timedelta(minutes=20).seconds > 0):
+            if (date - datetime.timedelta(minutes=60).seconds > 0):
                 mes = "토토 종료. 주최자 이외의 사람이 종료하였기에 배팅 무산"
 
                 # 포인트 돌려주기
@@ -245,6 +249,13 @@ class PointManager():
                 
             return mes
 
+    def end_betting(self, member_id):
+        try: 
+            toto_data= self.load_data("toto")
+            if toto_data["author"] == member_id:
+                toto_data["isbetting"] = 0
+        except:
+            pass
 
     def view_toto(self):
         '''
