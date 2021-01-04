@@ -446,7 +446,10 @@ async def 배팅(ctx, choice, point):
         await 토토(ctx)
     else:
         await ctx.send('진행중인 토토가 없습니다. 혹시 "!토토시작"을 안하셨나요?')
+<<<<<<< HEAD
 
+=======
+>>>>>>> 402cf0814d786fe8df43f91c23d10164e8ec2ec2
 
 @bot.command(aliases=['마감', '배팅마감', '배팅제한'])
 async def 배팅종료(ctx):
@@ -462,7 +465,10 @@ async def 배팅종료(ctx):
 @bot.command(aliases=[])
 async def 토토종료(ctx, choice):
     pointManager.set_ctx(ctx)
+<<<<<<< HEAD
 
+=======
+>>>>>>> 402cf0814d786fe8df43f91c23d10164e8ec2ec2
     mes = pointManager.end_toto(ctx.author, choice)
 
     if mes != -1:
@@ -470,6 +476,10 @@ async def 토토종료(ctx, choice):
         await ctx.send('토토 종료')
     else:
         await ctx.send('명령어를 잘못 입력하신거 같아요')
+<<<<<<< HEAD
+=======
+        
+>>>>>>> 402cf0814d786fe8df43f91c23d10164e8ec2ec2
 
 @bot.event
 async def on_voice_state_update(member, before, after):
