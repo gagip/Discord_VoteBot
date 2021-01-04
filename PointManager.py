@@ -42,10 +42,6 @@ def to_long_string(long_str):
     """긴 문자열 처리"""
     return '\n'.join([line.strip() for line in long_str.splitlines()])
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 402cf0814d786fe8df43f91c23d10164e8ec2ec2
 class PointManager():
     # Singleton Pattern
     _instance = None
@@ -388,8 +384,4 @@ class PointManager():
 
             return choice1_result, choice2_result
         except:
-<<<<<<< HEAD
             return -1
-=======
-            return -1
->>>>>>> 402cf0814d786fe8df43f91c23d10164e8ec2ec2
