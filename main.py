@@ -1,3 +1,7 @@
+"""
+트위코드 (twitch + discord) 봇
+작성자: gagip
+"""
 import discord, asyncio
 from discord.ext import commands
 import os
@@ -15,29 +19,40 @@ intents = discord.Intents.all()                         # bot에게 모든 작�
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 
-def find_id(find_name, members):
-    '''
-    이름 ->고유 id 반환
-    :param find_name: 조회할 유저 이름
-    :param memebers: 채널 멤버 리스트
-    '''
-    for member in members:
-        if member.name == find_name:
-            return member.id
-        if member.nick == find_name:
-            return member.id
-    return -1
+def to_str_color(s, color):
+    """
+    디스코드 글씨 색을 바꿉니다
+    디스코드 문법 참고: https://docs.google.com/document/d/1a93Obt9BDMGh-SL3quzU6OoyOJ3ZKN78Ez2CBA4FeEw/edit
+    https://docs.google.com/document/d/1JxA085nOZgVIWXMPUrjJcGhX6MDVgZ1rD8OZ-hcYCmk/edit
+    
+    Parameter
+    ---------
+    s : str
+        문자열
+    color : str
+        문자열(s)의 색깔
 
-def find_name(find_id, members):
-    '''
-    고유 id -> 이름 반환
-    :param find_id: 조회할 유저 id
-    :param members: 채널 멤버 리스트
-    '''
-    for member in members:
-        if member.id == find_id:
-            return member.name
-    return -1
+    Return
+    ------
+    result : str
+        색깔이 바뀐 문자열
+    """
+
+    result = "```"
+    if color == "red":
+        result += "diff\n"
+        result += "\n".join(["-"+line for line in s.split("\n")])
+    elif color == "blue":
+        result += "md\n"
+        result += "\n".join(["#"+line for line in s.split("\n")])
+    elif color == "yellow":
+        result += "css\n"
+    result += "```"
+    return result
+
+def to_long_string(long_str):
+    """긴 문자열 처리"""
+    return '\n'.join([line.strip() for line in long_str.splitlines()])
 
 @bot.event
 async def on_ready():
@@ -205,7 +220,6 @@ async def 랭킹(ctx, top=10):
     
     # 결과 텍스트 작성
     s = ''; rank = 0;
-    
     for d in sorted_data[:min(len(sorted_data), top)]:
         rank += 1
         s += f'{rank}등 {pointManager.find_name(d[0])} : {d[1]:,} 포인트\n'
@@ -359,64 +373,103 @@ async def 롤전적(ctx, id):
 @bot.command(aliases=['point', '점수'])
 async def 포인트(ctx, name=None):
     pointManager.set_ctx(ctx)
-    data = pointManager.load_data()
 
     if name is None: id=ctx.author.id 
     else: id=pointManager.find_id(name)
 
-    if id==-1: await ctx.send("해당 아이디가 존재하지 않습니다."); return
+    if id==-1: await ctx.send('해당 아이디가 존재하지 않습니다.'); return
 
-    await ctx.send(f"{pointManager.find_name(id)}님의 현재 포인트는 {data[str(id)]}입니다.")
+    await ctx.send(f'{pointManager.find_name(id)}님의 현재 포인트는 {pointManager.find_point(id)}입니다.')
 
-@bot.command(aliases=['도박', '놀이터'])
+@bot.command(aliases=['놀이터', '승부예측'])
 async def 토토시작(ctx, title, *choice):
+    
     pointManager.set_ctx(ctx)
 
+    # 포맷에 맞추지 못할 때
     if (title is None or len(choice) != 2):
-        await ctx.send("잘못입력하셨습니다")
+        await ctx.send('잘못입력하셨습니다')
         return
 
-    pointManager.create_toto(ctx.author.id, title, choice)
-    await ctx.send(f"토토 배팅 생성! {title}\n\n'!토토'를 입력하여 배팅현황을 파악하고\n'!배팅 [선택지] [포인트]'를 입력하여 배팅을 해보세요")
-    await 토토(ctx)
+    mes = pointManager.create_toto(ctx.author, title, choice)
+    
+    if mes == 1:
+        await ctx.send(f'토토 배팅 생성! {title}\n\n"!토토"를 입력하여 배팅현황을 파악하고\n"!배팅 [선택지] [포인트]"를 입력하여 배팅을 해보세요')
+        await 토토(ctx)
+    else:
+        await ctx.send(mes)
 
 @bot.command()
 async def 토토(ctx):
+    """
+    토토 배팅 현황을 보여줍니다
+    """
     try:
+        # 토토 관련 데이터
         pointManager.set_ctx(ctx)
-        toto_data = pointManager.load_data("toto")
-        author = pointManager.find_name(toto_data["author"])
+        toto_data = pointManager.load_data('toto')
+        author = pointManager.find_name(toto_data['author'])
         c1, c2 = pointManager.view_toto()
 
+        # 토토 현행 결과 mesage 입력
         embed = discord.Embed(title=f"{toto_data['title']}", description=f'주최자:{author} 개발자: gagip')
+        s1 = to_long_string(f'''\
+        총 포인트: {c1[0]}
+        비율: {c1[1]}%
+        배당:1: {c1[2]}
+        최고배팅자: {c1[3]}
+        최고배팅액: {c1[4]}\
+        ''')
         embed.add_field(name=f"[1] {toto_data['choice1']}", 
-                value=f"총 포인트: {c1[0]}\n비율:{c1[1]}%\n배당:1:{c1[2]}\n최고배팅자:{c1[3]}\n최고배팅액:{c1[4]}")
+                value=to_str_color(s1, 'red'))
+
+        s2 = to_long_string(f'''\
+        총 포인트: {c2[0]}
+        비율: {c2[1]}%
+        배당:1: {c2[2]}
+        최고배팅자: {c2[3]}
+        최고배팅액: {c2[4]}\
+        ''')
         embed.add_field(name=f"[2] {toto_data['choice2']}", 
-                value=f"총 포인트: {c2[0]}\n비율:{c2[1]}%\n배당:1:{c2[2]}\n최고배팅자:{c2[3]}\n최고배팅액:{c2[4]}")
+                value=to_str_color(s2, "blue"))
         await ctx.send(embed=embed)
     except:
-        await ctx.send("error. 혹시 '!토토시작'을 안하셨나요?")
+        await ctx.send('진행중인 토토가 없습니다. 혹시 "!토토시작"을 안하셨나요?')
 
 @bot.command(aliases=[])
 async def 배팅(ctx, choice, point):
     pointManager.set_ctx(ctx)
-    s = pointManager.betting(ctx.author.id, choice, point)
-    await ctx.send(s)
-    await 토토(ctx)
+    mes = pointManager.betting(ctx.author, choice, point)
+    
+    if mes != -1:
+        await ctx.send(mes)
+        await 토토(ctx)
+    else:
+        await ctx.send('진행중인 토토가 없습니다. 혹시 "!토토시작"을 안하셨나요?')
 
-@bot.command(aliases=['마감', '배팅마감'])
+
+@bot.command(aliases=['마감', '배팅마감', '배팅제한'])
 async def 배팅종료(ctx):
     pointManager.set_ctx(ctx)
-    pointManager.end_betting(ctx.author.id)
-    await ctx.send("배팅을 제한합니다. 이후 배팅을 하실 수 없습니다. 아예 배팅시스템을 종료하려면 !토토종료 [최종선택지] 명령어로 호출해주세요.")
+    mes = pointManager.end_betting(ctx.author)
+
+    if mes != -1:
+        await ctx.send(mes)
+    else:
+        await ctx.send('진행 중인 토토가 없습니다. 혹시 "!토토시작"을 안하셨나요?')
 
 
 @bot.command(aliases=[])
 async def 토토종료(ctx, choice):
     pointManager.set_ctx(ctx)
-    mes = pointManager.end_toto(ctx.author.id, choice)
-    await ctx.send(mes)
-    await ctx.send("토토 종료")
+
+    mes = pointManager.end_toto(ctx.author, choice)
+
+    if mes != -1:
+        await ctx.send(mes)
+        await ctx.send('토토 종료')
+    else:
+        await ctx.send('명령어를 잘못 입력하신거 같아요')
 
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -444,7 +497,7 @@ async def on_voice_state_update(member, before, after):
                 data = json.load(f)
                 data[str(len(data))] = [datetime.datetime.now().strftime("%Y/%m/%d %H:%M"), before.channel.id, "out"]
 
-            # 30분 참가할 때마다 포인트 제공
+            # 10분 참가할 때마다 포인트 제공
             mes = pointManager.give_point_for_joining_chennel(member, data)
             
             with open(f"./data/log/{member.id}.json", "w") as f:
