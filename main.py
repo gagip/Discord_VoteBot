@@ -403,11 +403,11 @@ async def 배팅(ctx, choice, point):
     await ctx.send(s)
     await 토토(ctx)
 
-@bot.command(aliases=[])
-async def 배팅종료(ctx, choice, point):
+@bot.command(aliases=['마감', '배팅마감'])
+async def 배팅종료(ctx):
     pointManager.set_ctx(ctx)
     pointManager.end_betting(ctx.author.id)
-    await ctx.send("배팅을 제한합니다. 이후 배팅을 하실 수 없습니다")
+    await ctx.send("배팅을 제한합니다. 이후 배팅을 하실 수 없습니다. 아예 배팅시스템을 종료하려면 !토토종료 [최종선택지] 명령어로 호출해주세요.")
 
 
 @bot.command(aliases=[])

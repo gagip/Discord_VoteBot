@@ -189,21 +189,30 @@ class PointManager():
             toto_data = self.load_data("toto")
             if (toto_data["isbetting"] == 0): return f"주최자가 배팅을 제한하였습니다" 
 
+            prebetting = False
+            idx = 0
             for t_member, t_choice, t_point in toto_data["log"]:
-                if (t_member == member_id and t_choice != choice): return f"다른 곳에 배팅할 수 없습니다."
+                if (t_member == member_id and t_choice != choice): 
+                    return f"다른 곳에 배팅할 수 없습니다."
+                elif (t_member == member_id and t_choice == choice):
+                    toto_data["log"][idx][2] += point
+                    prebetting = True
+                idx += 1
 
-            toto_data["log"].append([member_id, choice, point])
+
+            if not prebetting: toto_data["log"].append([member_id, choice, point])
 
             # 배팅 차감
             point_amount -= point
             point_data = self.load_data()
             point_data[str(member_id)] = point_amount
-            self.save_data(point_data)
 
+            # json 저장
+            self.save_data(point_data)
             with open("./data/toto.json", "w") as f:
                 json.dump(toto_data, f, indent=4, sort_keys=True, ensure_ascii=False)
 
-            return f"{self.find_name(member_id)}님이 {choice}에 {point} 포인트를 배팅하셨습니다."
+            return f"{self.find_name(member_id)}님이 {toto_data['choice'+str(choice)]}에 {point} 포인트를 배팅하셨습니다."
 
     def end_toto(self, member_id, result_choice):
         '''
@@ -254,6 +263,9 @@ class PointManager():
             toto_data= self.load_data("toto")
             if toto_data["author"] == member_id:
                 toto_data["isbetting"] = 0
+                with open("./data/toto.json", "w") as f:
+                    json.dump(toto_data, f, indent=4, sort_keys=True, ensure_ascii=False)
+
         except:
             pass
 
