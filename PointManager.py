@@ -185,8 +185,8 @@ class PointManager():
             if not (choice == 1 or choice == 2): return
             # 배팅 기록 저장
             toto_data = self.load_data("toto")
-            for member, choice, point in toto_data["log"]:
-                if (member == member_id): return f"이미 배팅하셨습니다."
+            for t_member, t_choice, t_point in toto_data["log"]:
+                if (t_member == member_id and t_choice != choice): return f"다른 곳에 배팅할 수 없습니다."
 
             toto_data["log"].append([member_id, choice, point])
 
