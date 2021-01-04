@@ -289,7 +289,7 @@ class PointManager():
                 c1, c2 = self.view_toto()
                 c = c1 if result_choice == 1 else c2        # 최종 결과 선택지
                 
-                mes = f'최종 결과 {toto_data["choice"+str(result_choice)]}을(를) 선택한 사람들이 포인트를 획득합니다'
+                mes = f'최종 결과 {toto_data["choice"+str(result_choice)]}을(를) 선택한 사람들이 포인트를 획득합니다\n'
                 for t_member, t_choice, t_point in toto_data['log']:
                     if (t_choice == result_choice):
                         get_point = int(t_point * c[2])           # 획득 포인트 = point * 배당
