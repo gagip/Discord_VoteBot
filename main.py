@@ -66,9 +66,12 @@ async def 도움(ctx):
     embed.add_field(name=f'!투표', value=f'!투표 [선택지1] [선택지2]...\n 투표장이 투표 세팅을 한 후 투표를 진행합니다. 선택지가 없을 시 찬반투표로 진행')
     embed.add_field(name=f'!tts', value=f'!tts [오덕] [메시지]\n tts 목소리로 해당 메시지를 읽어줍니다. (개발중)')
     embed.add_field(name=f'!후원', value=f'!후원 [후원할 유저 id] [후원할 포인트]\n 유저에게 후원')
-    embed.add_field(name=f'!랭킹', value=f'!랭킹 [숫자]\n 1위부터 [숫자]까지 포인트 랭킹 목록을 보여줍니다')
-    embed.add_field(name=f'!포인트', value=f'!포인트 [해당 유저]\n [해당 유저]의 잔여 포인트를 보여줍니다')
-
+    embed.add_field(name=f'!랭킹', value=f'!랭킹 [숫자]\n 1위부터 [숫자]까지 포인트 랭킹 목록을 보여줍니다.')
+    embed.add_field(name=f'!포인트', value=f'!포인트 [해당 유저]\n [해당 유저]의 잔여 포인트를 보여줍니다.')
+    embed.add_field(name=f'!토토시작', value=f'!토토시작 [제목] [선택지1] [선택지2]\n 토토 배팅을 시작합니다.')
+    embed.add_field(name=f'!토토', value=f'!토토\n 토토 배팅 현황을 파악합니다.')
+    embed.add_field(name=f'!배팅', value=f'!배팅 [선택지(1 or 2)] [포인트]\n 해당 선택지에 배팅을 합니다.')
+    embed.add_field(name=f'!토토종료', value=f'!토토종료 [선택지(1 or 2)]\n 토토 배팅을 종료하고 포인트를 정산합니다.')
     
     await ctx.send(embed=embed)
 
@@ -364,6 +367,46 @@ async def 포인트(ctx, name=None):
 
     await ctx.send(f"{pointManager.find_name(id)}님의 현재 포인트는 {data[str(id)]}입니다.")
 
+@bot.command(aliases=['도박', '놀이터'])
+async def 토토시작(ctx, title, *choice):
+    pointManager.set_ctx(ctx)
+
+    if (title is None or len(choice) != 2):
+        await ctx.send("잘못입력하셨습니다")
+        return
+
+    pointManager.create_toto(ctx.author.id, title, choice)
+    await ctx.send(f"토토 배팅 생성! {title}\n\n'!토토'를 입력하여 배팅현황을 파악하고\n'!배팅 [선택지] [포인트]'를 입력하여 배팅을 해보세요")
+
+@bot.command()
+async def 토토(ctx):
+    try:
+        pointManager.set_ctx(ctx)
+        toto_data = pointManager.load_data("toto")
+        c1, c2 = pointManager.view_toto()
+
+        embed = discord.Embed(title=f"{toto_data['title']}", description=f'개발자: gagip')
+        embed.add_field(name=f"{toto_data['choice1']}", 
+                value=f"총 포인트: {c1[0]}\n비율:{c1[1]}%\n배당:1:{c1[2]}\n최고배팅자:{c1[3]}\n최고배팅액:{c1[4]}")
+        embed.add_field(name=f"{toto_data['choice2']}", 
+                value=f"총 포인트: {c2[0]}\n비율:{c2[1]}%\n배당:1:{c2[2]}\n최고배팅자:{c2[3]}\n최고배팅액:{c2[4]}")
+        await ctx.send(embed=embed)
+    except:
+        await ctx.send("error. 혹시 '!토토시작'을 안하셨나요?")
+
+@bot.command(aliases=[])
+async def 배팅(ctx, choice, point):
+    pointManager.set_ctx(ctx)
+    s = pointManager.betting(ctx.author.id, choice, point)
+    await ctx.send(s)
+    await 토토(ctx)
+
+@bot.command(aliases=[])
+async def 토토종료(ctx, choice):
+    pointManager.set_ctx(ctx)
+    mes = pointManager.end_toto(ctx.author.id, choice)
+    await ctx.send(mes)
+    await ctx.send("토토 종료")
 
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -400,7 +443,7 @@ async def on_voice_state_update(member, before, after):
                 await before.channel.guild.text_channels[0].send(mes)
         except FileNotFoundError:
             pass
-    
+
 
 if __name__ == "__main__":
     # bot 토큰 불러오기

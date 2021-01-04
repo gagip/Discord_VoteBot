@@ -1,8 +1,11 @@
 import json
 import discord, asyncio
+import os
 from discord.ext import commands
 
 import datetime
+
+path = os.path.dirname(os.path.abspath(__file__))
 
 class PointManager():
     # Singleton Pattern
@@ -16,6 +19,7 @@ class PointManager():
         self.ctx = None
         self.members = None
         self.join_point = 50
+        self.date_format = "%Y/%m/%d %H:%M"
 
     def set_ctx(self, ctx):
         self.ctx = ctx
@@ -64,7 +68,9 @@ class PointManager():
             with open(f"./data/{guild}.json", "r") as json_file:
                 return json.load(json_file)
         except FileNotFoundError:
-            self.init_data()
+            # TODO 임시로 해놨는데 고치기
+            if guild != "toto":
+                self.init_data()
 
     def save_data(self, data, guild=None):
         '''
@@ -100,7 +106,16 @@ class PointManager():
                 return member.name
         return -1
     
+    def find_point(self, user_id):
+        data = self.load_data()
+        return data[str(user_id)]
+
     def give_point_for_joining_chennel(self, member, data):
+        '''
+        멤버에게 채널 참여 포인트를 줍니다
+        :param member: 참여 멤버
+        :param data: 채널 참여 로그 data
+        '''
         # 현재 보이스톡 
         member_id = member.id
 
@@ -126,4 +141,144 @@ class PointManager():
 
         return -1
 
+    def create_toto(self, member_id, title, choice):
+        '''
+        놀이터를 만듭니다
+        '''
+        try:
+            if os.path.exists(path+"/data/toto.json"):
+                data = self.load_data("toto")
+                if (data["author"] != member_id): return
+
+            # 새로 파일을 만듭니다
+            with open(f"./data/toto.json", "w") as f:
+                data = {}
+                data["author"] = member_id
+                data["date"] = datetime.datetime.now().strftime("%Y/%m/%d %H:%M")
+                data["title"] = title
+                data["choice1"] = choice[0]
+                data["choice2"] = choice[1]
+                data["log"] = []
+                json.dump(data, f, indent=4, sort_keys=True, ensure_ascii=False)
+        except:
+            # 새로 파일을 만듭니다
+            with open(f"./data/toto.json", "w") as f:
+                data = {}
+                data["author"] = member_id
+                data["date"] = datetime.datetime.now().strftime("%Y/%m/%d %H:%M")
+                data["title"] = title
+                data["choice1"] = choice[0]
+                data["choice2"] = choice[1]
+                data["log"] = []
+                json.dump(data, f, indent=4, sort_keys=True, ensure_ascii=False)
     
+    def betting(self, member_id, choice, point):
+        '''
+        선택지에 배팅합니다
+        '''
+        point_amount = self.find_point(member_id)
+        choice = int(choice)
+        point = int(point)
+        if (point_amount < point):
+            return f"잔액이 부족합니다. 현재 소지하신 포인트는 {point_amount}입니다."
+        else:
+            if not (choice == 1 or choice == 2): return
+            # 배팅 기록 저장
+            toto_data = self.load_data("toto")
+            for member, choice, point in toto_data["log"]:
+                if (member == member_id): return f"이미 배팅하셨습니다."
+
+            toto_data["log"].append([member_id, choice, point])
+
+            # 배팅 차감
+            point_amount -= point
+            point_data = self.load_data()
+            point_data[str(member_id)] = point_amount
+            self.save_data(point_data)
+
+            with open("./data/toto.json", "w") as f:
+                json.dump(toto_data, f, indent=4, sort_keys=True, ensure_ascii=False)
+
+            return f"{self.find_name(member_id)}님이 {choice}에 {point} 포인트를 배팅하셨습니다."
+
+    def end_toto(self, member_id, result_choice):
+        '''
+        놀이터를 종료합니다
+        '''
+        toto_data = self.load_data("toto")
+        result_choice = int(result_choice)
+
+        if (member_id == toto_data["author"]):
+            if not (result_choice == 1 or result_choice == 2): return
+
+            # 포인트 정산
+            c1, c2 = self.view_toto()
+            point_data = self.load_data()
+            c = c1 if result_choice == 1 else c2
+            mes = ""
+            for member, choice, point in toto_data["log"]:
+                if (choice == result_choice):
+                    get_point = int(point * c[2])
+                    point_data[str(member)] += get_point
+                    mes += f"{self.find_name(member)}님 {get_point}포인트 획득!\n"
+            self.save_data(point_data)
+
+            with open("./data/toto.json", "w") as f:
+                json.dump("", f)
+            return mes
+        else:
+            # 다른 사람이지만 20분이 지나면 초기화 시킬 수 있습니다
+            mes = f"이미 토토를 {toto_data['author']}님이 만드셨습니다. 20분이 지나면 다른 분이 초기화 시킬 수 있습니다."
+            date = datetime.datetime.strptime(toto_data["date"], self.date_format)
+            if (date - datetime.timedelta(minutes=20).seconds > 0):
+                mes = "토토 종료. 주최자 이외의 사람이 종료하였기에 배팅 무산"
+
+                # 포인트 돌려주기
+                point_data = self.load_data()
+                toto_data = self.load_data("toto")
+                for member, choice, point in toto_data["log"]:
+                    point_data[str(member)] += point
+
+                self.save_data()
+                with open("./data/toto.json", "w") as f:
+                    json.dump("", f)
+                
+            return mes
+
+
+    def view_toto(self):
+        '''
+        토토 현재 상황을 볼 수 있습니다.
+        '''
+        toto_data = self.load_data("toto")
+        choice1 = 0
+        max_choice1 = ["", 0]
+
+        choice2 = 0
+        max_choice2 = ["", 0]
+
+        # 데이터에서 합산
+        for member, choice, point in toto_data["log"]:
+            if (choice == 1):
+                if (max_choice1[1] < point):
+                    max_choice1[0] = self.find_name(member)
+                    max_choice1[1] = point
+                choice1 += point
+            else:
+                if (max_choice2[1] < point):
+                    max_choice2[0] = self.find_name(member)
+                    max_choice2[1] = point
+                choice2 += point
+
+        # 배당 구하기
+        total = choice1 + choice2
+        choice1_rate = int(choice1/total * 100) if total != 0 else 0
+        choice2_rate = int(choice2/total * 100) if total != 0 else 0
+        choice1_dividend = total/choice1 if choice1 != 0 else 0
+        choice2_dividend = total/choice2 if choice2 != 0 else 0
+
+        # 총 포인트, 비율, 배당, 최대투자자, 최대투자금
+        choice1_result = [choice1, choice1_rate, choice1_dividend, max_choice1[0], max_choice1[1]]
+        choice2_result = [choice2, choice2_rate, choice2_dividend, max_choice2[0], max_choice2[1]]
+
+        return choice1_result, choice2_result
