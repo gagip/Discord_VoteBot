@@ -226,7 +226,7 @@ class PointManager():
             point_amount = self.find_point(member_id)
             choice = int(choice)
             point = int(point)
-            if (point > 0) return '1 포인트 이상 거셔야 합니다.'
+            if (point < 0): return '1 포인트 이상 거셔야 합니다.'
             if (point_amount < point):
                 return f'잔액이 부족합니다. 현재 소지하신 포인트는 {point_amount}입니다.'
             else:
