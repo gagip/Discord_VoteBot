@@ -185,6 +185,8 @@ async def 후원(ctx, name, money):
     money = int(money)
     complte = False     # 후원 성공 여부
 
+    if money > 0: await ctx.send('1 포인트 이상 하셔야 합니다'); return
+
     data = pointManager.load_data()
 
     # 자기 자신 허용 X
