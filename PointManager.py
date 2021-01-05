@@ -53,7 +53,7 @@ class PointManager():
     def __init__(self):
         self.ctx = None
         self.members = None
-        self.join_point = 10
+        self.join_point = 1
         self.date_format = "%Y/%m/%d %H:%M"
 
     def set_ctx(self, ctx):
@@ -166,8 +166,8 @@ class PointManager():
 
             diff_time = (after_time - before_time).seconds // 60        # 분 단위로 환산
             
-            # 10분마다 점수 주기
-            score = (diff_time//10) * self.join_point
+            # 1분마다 점수 주기
+            score = (diff_time//1) * self.join_point
             
             # json data에 반영
             if (score > 0):
