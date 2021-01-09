@@ -53,7 +53,7 @@ class PointManager():
     def __init__(self):
         self.ctx = None
         self.members = None
-        self.join_point = 1
+        self.join_point = 2
         self.date_format = "%Y/%m/%d %H:%M"
 
     def set_ctx(self, ctx):
@@ -155,20 +155,38 @@ class PointManager():
         member_id = member.id
 
         # 최신 로그 추출
-        before = data[str(len(data)-2)]
-        after = data[str(len(data)-1)]
+        before = data["log"][str(len(data['log'])-2)]
+        after = data["log"][str(len(data['log'])-1)]
+        daily_point = data["daily"]["point"]
+        daily_date =  datetime.datetime.strptime(data["daily"]["date"], self.date_format).date()
+        
 
         # in -> out : 보이스 채널에서 나갔다면
         if (before[2] == 'in' and after[2] == 'out') and\
                 (before[1] == after[1]):
             before_time = datetime.datetime.strptime(before[0], self.date_format)
             after_time = datetime.datetime.strptime(after[0], self.date_format)
+            
+            # 포인트 제한
+            # 1일당 300포인트까지 제한
+            cur_time = before_time
+            score = 0
+            diff_time = 0
+            while (cur_time.date() <= daily_date):
+                # 특정 하루의 최대시각과 채널에 나간 시각을 비교해 작은 날짜 반환
+                max_time = max(datetime.datetime.combine(cur_time, datetime.datetime.min.time()), before_time)
+                # 특정 하루의 최대시각과 채널에 나간 시각을 비교해 작은 날짜 반환
+                min_time = min(datetime.datetime.combine(cur_time, datetime.datetime.max.time()), after_time)
+                
+                # 들어온 날짜와 비교하여 점수 반환 
+                _diff_time = (min_time - max_time).seconds // 60
+                _score = min((_diff_time//1) * self.join_point, 300)
+                
+                score += _score
+                diff_time += _diff_time
+                cur_time += datetime.timedelta(days=1) 
+            
 
-            diff_time = (after_time - before_time).seconds // 60        # 분 단위로 환산
-            
-            # 1분마다 점수 주기
-            score = (diff_time//1) * self.join_point
-            
             # json data에 반영
             if (score > 0):
                 guild_data = self.load_data(member.guild.name)
@@ -304,7 +322,7 @@ class PointManager():
                 return mes
             else:
                 # 다른 사람이지만 60분이 지나면 초기화 시킬 수 있습니다
-                mes = f'이미 토토를 {toto_data["author"]}님이 만드셨습니다. 60분이 지나면 다른 분이 초기화 시킬 수 있습니다.'
+                mes = f'이미 토토를 {self.find_name(toto_data["author"])}님이 만드셨습니다. 60분이 지나면 다른 분이 초기화 시킬 수 있습니다.'
                 
                 date = datetime.datetime.strptime(toto_data["date"], self.date_format)
                 # 직역하면 '시작날짜+60분 후'보다 '지금'이 더 미래니? 

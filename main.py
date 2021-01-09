@@ -478,15 +478,18 @@ async def on_voice_state_update(member, before, after):
         try:
             with open(f"./data/log/{member.id}.json", "r") as f:
                 data = json.load(f)
-                data[str(len(data))] = [datetime.datetime.now().strftime("%Y/%m/%d %H:%M"), after.channel.id, "in"]
+                data["daily"]["date"] = datetime.datetime.now().strftime("%Y/%m/%d %H:%M") 
+                data["log"][str(len(data['log']))] = \
+                                    [datetime.datetime.now().strftime("%Y/%m/%d %H:%M"), after.channel.id, "in"]
 
             with open(f"./data/log/{member.id}.json", "w") as f:
                 json.dump(data, f, indent=4, sort_keys=True)
                 
-        except FileNotFoundError:
+        except:
             with open(f"./data/log/{member.id}.json", "w") as f:
                 data = {}
-                data[0] = [datetime.datetime.now().strftime("%Y/%m/%d %H:%M"), after.channel.id, "in"]
+                data["daily"] = {"point": 0, "date": datetime.datetime.now().strftime("%Y/%m/%d %H:%M")} 
+                data["log"] = {0:[datetime.datetime.now().strftime("%Y/%m/%d %H:%M"), after.channel.id, "in"]}
                 json.dump(data, f, indent=4, sort_keys=True)
                 pass
 
@@ -495,9 +498,10 @@ async def on_voice_state_update(member, before, after):
         try:
             with open(f"./data/log/{member.id}.json", "r") as f:
                 data = json.load(f)
-                data[str(len(data))] = [datetime.datetime.now().strftime("%Y/%m/%d %H:%M"), before.channel.id, "out"]
+                data['log'][str(len(data['log']))] = \
+                                    [datetime.datetime.now().strftime("%Y/%m/%d %H:%M"), before.channel.id, "out"]
 
-            # 10분 참가할 때마다 포인트 제공
+            # 참가할 때마다 포인트 제공
             mes = pointManager.give_point_for_joining_chennel(member, data)
             
             with open(f"./data/log/{member.id}.json", "w") as f:
