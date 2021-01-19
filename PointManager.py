@@ -55,6 +55,7 @@ class PointManager():
         self.members = None
         self.join_point = 2
         self.date_format = "%Y/%m/%d %H:%M"
+        self.day_limit_point = 300
 
     def set_ctx(self, ctx):
         self.ctx = ctx
@@ -172,7 +173,10 @@ class PointManager():
             cur_time = before_time
             score = 0
             diff_time = 0
-            while (cur_time.date() <= daily_date):
+            while (cur_time.date() <= datetime.datetime.today().date()):
+                if cur_time.date() > daily_date:
+                    data["daily"] = {"point": 0, 
+                                    "date": datetime.datetime.combine(cur_time, datetime.datetime.min.time()).strftime("%Y/%m/%d %H:%M")} 
                 # 특정 하루의 최대시각과 채널에 나간 시각을 비교해 작은 날짜 반환
                 max_time = max(datetime.datetime.combine(cur_time, datetime.datetime.min.time()), before_time)
                 # 특정 하루의 최대시각과 채널에 나간 시각을 비교해 작은 날짜 반환
@@ -180,10 +184,14 @@ class PointManager():
                 
                 # 들어온 날짜와 비교하여 점수 반환 
                 _diff_time = (min_time - max_time).seconds // 60
-                _score = min((_diff_time//1) * self.join_point, 300)
-                
+                _score = min((_diff_time//1) * self.join_point, self.day_limit_point)
+                # 접속 날짜의 한계치 포인트 넘지 않는 선에서 포인트 지급
+                if (cur_time.date() == daily_date): 
+                    _score = self.day_limit_point - daily_point if (_score + daily_point > self.day_limit_point) else _score
+                # 하루 데이터 
                 score += _score
                 diff_time += _diff_time
+                if (cur_time.date() == daily_date): data['daily']['point'] += _score
                 cur_time += datetime.timedelta(days=1) 
             
 
@@ -255,6 +263,12 @@ class PointManager():
 
                 # 배팅 제한 여부 확인
                 if (toto_data['isbetting'] == 0): return '주최자가 배팅을 제한하였습니다' 
+
+                # 판돈의 최소배팅
+                c1, c2 = self.view_toto()
+                c = c2 if choice == 1 else c1 
+                minmum_betting_point = c[0] * 1//10
+                if point < minmum_betting_point : return f'최소 배팅: {minmum_betting_point}포인트 이상 거셔야 합니다.'
 
                 # 배팅 기록
                 prebetting = False          # 이전에 배팅했는지 여부

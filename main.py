@@ -478,7 +478,9 @@ async def on_voice_state_update(member, before, after):
         try:
             with open(f"./data/log/{member.id}.json", "r") as f:
                 data = json.load(f)
-                data["daily"]["date"] = datetime.datetime.now().strftime("%Y/%m/%d %H:%M") 
+                date_date = datetime.datetime.strptime(data['daily']['date'], "%Y/%m/%d %H:%M") 
+                if (datetime.datetime.today().date() != date_date.date()):
+                    data["daily"] = {"point": 0, "date": datetime.datetime.now().strftime("%Y/%m/%d %H:%M")} 
                 data["log"][str(len(data['log']))] = \
                                     [datetime.datetime.now().strftime("%Y/%m/%d %H:%M"), after.channel.id, "in"]
 
